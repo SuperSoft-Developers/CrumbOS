@@ -1,0 +1,42 @@
+name: Build CrumbOS ISO
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt update
+        sudo apt install -y nasm grub-pc-bin xorriso
+
+    - name: Build kernel
+      run: |
+        mkdir -p iso/boot/grub
+        nasm kernel/kernel.asm -f bin -o iso/boot/kernel.bin
+
+    - name: Create grub.cfg
+      run: |
+        cat > iso/boot/grub/grub.cfg << 'EOF'
+        menuentry "CrumbOS" {
+            multiboot /boot/kernel.bin
+            boot
+        }
+        EOF
+
+    - name: Generate ISO
+      run: |
+        grub-mkrescue -o CrumbOS.iso iso
+
+    - name: Upload ISO
+      uses: actions/upload-artifact@v4
+      with:
+        name: CrumbOS
+        path: CrumbOS.iso
