@@ -1,4 +1,4 @@
-name: Build CrumbOS ISO
+name: Build CrumbOS
 
 on:
   push:
@@ -9,34 +9,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Install tools
-      run: |
-        sudo apt update
-        sudo apt install -y nasm grub-pc-bin xorriso
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            nasm \
+            grub-pc-bin \
+            grub-common \
+            xorriso \
+            mtools
 
-    - name: Build kernel
-      run: |
-        mkdir -p iso/boot/grub
-        nasm kernel/kernel.asm -f bin -o iso/boot/kernel.bin
+      - name: Build kernel
+        run: |
+          mkdir -p iso/boot/grub
 
-    - name: Create grub.cfg
-      run: |
-        cat > iso/boot/grub/grub.cfg << 'EOF'
-        menuentry "CrumbOS" {
-            multiboot /boot/kernel.bin
-            boot
-        }
-        EOF
+          if [ -f kernel/kernel.asm ]; then
+            nasm kernel/kernel.asm -f bin -o iso/boot/kernel.bin
+          else
+            echo "kernel/kernel.asm não encontrado!"
+            exit 1
+          fi
 
-    - name: Generate ISO
-      run: |
-        grub-mkrescue -o CrumbOS.iso iso
+      - name: Create GRUB config
+        run: |
+          cat > iso/boot/grub/grub.cfg << EOF
+          set timeout=0
+          set default=0
 
-    - name: Upload ISO
-      uses: actions/upload-artifact@v4
-      with:
-        name: CrumbOS
-        path: CrumbOS.iso
+          menuentry "CrumbOS" {
+              multiboot /boot/kernel.bin
+              boot
+          }
+          EOF
+
+      - name: Generate ISO
+        run: |
+          grub-mkrescue -o CrumbOS.iso iso
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrumbOS-ISO
+          path: CrumbOS.iso
